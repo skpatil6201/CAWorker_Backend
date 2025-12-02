@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^5.2.1"
   },
   "name": "server",
@@ -7,6 +8,7 @@
   "description": "\"# CAWorker_Backend\"",
   "main": "index.js",
   "devDependencies": {
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^24.10.1",
     "nodemon": "^3.1.11",
