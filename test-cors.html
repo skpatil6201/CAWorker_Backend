@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .result { margin: 20px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        button { padding: 10px 20px; margin: 10px 0; cursor: pointer; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>CORS Test for S K ASSOCIATES API</h1>
+    
+    <button onclick="testHealthEndpoint()">Test Health Endpoint</button>
+    <button onclick="testCandidateRegistration()">Test Candidate Registration</button>
+    <button onclick="clearResults()">Clear Results</button>
+    
+    <div id="results"></div>
+
+    <script>
+        function addResult(message, isSuccess = true) {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${isSuccess ? 'success' : 'error'}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function testHealthEndpoint() {
+            try {
+                addResult('Testing health endpoint...', true);
+                
+                const response = await fetch('http://localhost:8080/health', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult(`✅ Health check successful!<br><pre>${JSON.stringify(data, null, 2)}</pre>`, true);
+                } else {
+                    addResult(`❌ Health check failed: ${response.status}<br><pre>${JSON.stringify(data, null, 2)}</pre>`, false);
+                }
+                
+            } catch (error) {
+                addResult(`❌ Health check error: ${error.message}`, false);
+            }
+        }
+
+        async function testCandidateRegistration() {
+            try {
+                addResult('Testing candidate registration...', true);
+                
+                const testData = {
+                    fullName: "Browser Test User",
+                    dateOfBirth: "1990-01-01",
+                    gender: "Male",
+                    mobileNumber: "9876543210",
+                    email: "browsertest@example.com",
+                    password: "Password123",
+                    address: "123 Browser Test Street, Test City",
+                    highestQualification: "Graduate",
+                    certifications: "None",
+                    yearsOfExperience: "1-3",
+                    currentPreviousEmployer: "Test Company",
+                    positionHeld: "Test Position",
+                    areasOfExpertise: ["Taxation"],
+                    softwareProficiency: ["Tally"],
+                    documents: []
+                };
+                
+                const response = await fetch('http://localhost:8080/api/candidates/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult(`✅ Registration successful!<br><pre>${JSON.stringify(data, null, 2)}</pre>`, true);
+                } else {
+                    addResult(`❌ Registration failed: ${response.status}<br><pre>${JSON.stringify(data, null, 2)}</pre>`, false);
+                }
+                
+            } catch (error) {
+                addResult(`❌ Registration error: ${error.message}`, false);
+            }
+        }
+
+        // Test on page load
+        window.onload = function() {
+            addResult('🚀 CORS Test Page Loaded. Click buttons to test API endpoints.', true);
+            addResult(`📍 Current page origin: ${window.location.origin}`, true);
+            addResult(`🎯 API server: http://localhost:8080`, true);
+        };
+    </script>
+</body>
+</html>
