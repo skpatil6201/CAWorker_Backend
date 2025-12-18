@@ -69,16 +69,23 @@ export const rateLimit = (windowMs: number = 15 * 60 * 1000, maxRequests: number
 
 // Security headers middleware
 export const securityHeaders = (req: Request, res: Response, next: NextFunction) => {
-  // Set security headers
-  res.set({
+  // Set security headers (less strict in development)
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+  
+  const headers: Record<string, string> = {
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
     'X-XSS-Protection': '1; mode=block',
-    'Referrer-Policy': 'strict-origin-when-cross-origin',
-    'Content-Security-Policy': "default-src 'self'",
-    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains'
-  });
+    'Referrer-Policy': 'strict-origin-when-cross-origin'
+  };
   
+  // Only add strict CSP and HSTS in production
+  if (!isDevelopment) {
+    headers['Content-Security-Policy'] = "default-src 'self'";
+    headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains';
+  }
+  
+  res.set(headers);
   next();
 };
 
