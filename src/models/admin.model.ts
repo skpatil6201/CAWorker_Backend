@@ -13,7 +13,7 @@ class AdminModel {
       id: 1,
       username: "admin",
       email: "admin@skassociates.com",
-      password: "admin123",
+      password: "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/RK.s5uO.G", // admin123 hashed
       role: "SuperAdmin",
       createdAt: new Date()
     }
