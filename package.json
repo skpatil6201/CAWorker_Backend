@@ -9,7 +9,7 @@
   },
   "name": "server",
   "version": "1.0.0",
-  "description": "\"# CAWorker_Backend\"",
+  "description": "S K ASSOCIATES - CA Worker Backend API Server for managing CA workers and firms registration system",
   "main": "index.js",
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -18,13 +18,19 @@
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^24.10.1",
     "nodemon": "^3.1.11",
+    "rimraf": "^6.0.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   },
   "scripts": {
-    "dev": "nodemon --watch src --exec ts-node src/index.ts",
+    "dev": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "clean": "rimraf dist",
+    "prebuild": "npm run clean",
+    "postbuild": "echo 'Build completed successfully'",
+    "lint": "echo 'Linting not configured'",
+    "test": "echo 'Tests not configured'"
   },
   "repository": {
     "type": "git",

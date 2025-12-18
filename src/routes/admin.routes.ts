@@ -10,7 +10,7 @@ import {
   updateCandidateStatus,
   updateFirmStatus
 } from "../controllers/admin.controller";
-import { adminLoginValidator, adminCreateValidator } from "../validators/admin.validator";
+import { adminLoginValidator, adminCreateValidator, adminUpdateValidator } from "../validators/admin.validator";
 import { handleValidationErrors } from "../middleware/validation.middleware";
 import { authenticateToken, authorizeRoles } from "../middleware/auth.middleware";
 
@@ -23,7 +23,7 @@ router.post("/admins/login", adminLoginValidator, handleValidationErrors, loginA
 router.get("/admins", authenticateToken, authorizeRoles('SuperAdmin'), getAllAdmins);
 router.get("/admins/:id", authenticateToken, authorizeRoles('SuperAdmin'), getAdminById);
 router.post("/admins", authenticateToken, authorizeRoles('SuperAdmin'), adminCreateValidator, handleValidationErrors, createAdmin);
-router.put("/admins/:id", authenticateToken, authorizeRoles('SuperAdmin'), updateAdmin);
+router.put("/admins/:id", authenticateToken, authorizeRoles('SuperAdmin'), adminUpdateValidator, handleValidationErrors, updateAdmin);
 router.delete("/admins/:id", authenticateToken, authorizeRoles('SuperAdmin'), deleteAdmin);
 
 // Protected routes - Admin and SuperAdmin
