@@ -1,71 +1,227 @@
 import { Request, Response } from "express";
 import AdminModel from "../models/admin.model";
+import CandidateModel from "../models/candidate.model";
+import FirmModel from "../models/firm.model";
+import { hashPassword, comparePassword, generateToken } from "../utils/auth";
+import { sendSuccess, sendError } from "../utils/response";
+import { AuthRequest } from "../middleware/auth.middleware";
 
 export const getAllAdmins = (req: Request, res: Response) => {
-  const admins = AdminModel.getAll();
-  res.json(admins);
+  try {
+    const admins = AdminModel.getAll();
+    // Remove passwords from response
+    const adminsWithoutPasswords = admins.map(({ password, ...admin }) => admin);
+    sendSuccess(res, "Admins retrieved successfully", adminsWithoutPasswords);
+  } catch (error) {
+    sendError(res, "Failed to retrieve admins", (error as Error).message, 500);
+  }
 };
 
 export const getAdminById = (req: Request, res: Response) => {
-  const id = parseInt(req.params.id);
-  const admin = AdminModel.getById(id);
-  
-  if (admin) {
-    res.json(admin);
-  } else {
-    res.status(404).json({ message: "Admin not found" });
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return sendError(res, "Invalid admin ID", undefined, 400);
+    }
+
+    const admin = AdminModel.getById(id);
+    if (admin) {
+      const { password, ...adminWithoutPassword } = admin;
+      sendSuccess(res, "Admin retrieved successfully", adminWithoutPassword);
+    } else {
+      sendError(res, "Admin not found", undefined, 404);
+    }
+  } catch (error) {
+    sendError(res, "Failed to retrieve admin", (error as Error).message, 500);
   }
 };
 
-export const loginAdmin = (req: Request, res: Response) => {
-  const { email, password, username } = req.body;
-  
-  let admin;
-  if (email) {
-    admin = AdminModel.getByEmail(email);
-  } else if (username) {
-    admin = AdminModel.getByUsername(username);
-  }
-  
-  if (admin && admin.password === password) {
+export const loginAdmin = async (req: Request, res: Response) => {
+  try {
+    const { email, password, username } = req.body;
+    
+    if (!email && !username) {
+      return sendError(res, "Email or username is required", undefined, 400);
+    }
+
+    let admin;
+    if (email) {
+      admin = AdminModel.getByEmail(email);
+    } else if (username) {
+      admin = AdminModel.getByUsername(username);
+    }
+
+    if (!admin) {
+      return sendError(res, "Invalid credentials", undefined, 401);
+    }
+
+    const isPasswordValid = await comparePassword(password, admin.password);
+    if (!isPasswordValid) {
+      return sendError(res, "Invalid credentials", undefined, 401);
+    }
+
+    // Generate token
+    const token = generateToken({
+      id: admin.id,
+      email: admin.email,
+      username: admin.username,
+      role: admin.role,
+      userType: 'admin'
+    });
+
     const { password: _, ...adminWithoutPassword } = admin;
-    res.json({ message: "Login successful", admin: adminWithoutPassword });
-  } else {
-    res.status(401).json({ message: "Invalid credentials" });
+    
+    sendSuccess(res, "Login successful", {
+      admin: adminWithoutPassword,
+      token
+    });
+  } catch (error) {
+    sendError(res, "Login failed", (error as Error).message, 500);
   }
 };
 
-export const createAdmin = (req: Request, res: Response) => {
-  const { username, email, password, role } = req.body;
-  
-  const newAdmin = AdminModel.create({
-    username,
-    email,
-    password,
-    role: role || "Admin"
-  });
-  
-  res.status(201).json(newAdmin);
+export const createAdmin = async (req: Request, res: Response) => {
+  try {
+    const { username, email, password, role } = req.body;
+
+    // Check if admin already exists
+    const existingAdminByEmail = AdminModel.getByEmail(email);
+    const existingAdminByUsername = AdminModel.getByUsername(username);
+    
+    if (existingAdminByEmail) {
+      return sendError(res, "Admin already exists with this email", undefined, 409);
+    }
+    
+    if (existingAdminByUsername) {
+      return sendError(res, "Admin already exists with this username", undefined, 409);
+    }
+
+    // Hash password
+    const hashedPassword = await hashPassword(password);
+    
+    const newAdmin = AdminModel.create({
+      username,
+      email,
+      password: hashedPassword,
+      role: role || "Admin"
+    });
+
+    const { password: _, ...adminWithoutPassword } = newAdmin;
+    
+    sendSuccess(res, "Admin created successfully", adminWithoutPassword, 201);
+  } catch (error) {
+    sendError(res, "Failed to create admin", (error as Error).message, 500);
+  }
 };
 
-export const updateAdmin = (req: Request, res: Response) => {
-  const id = parseInt(req.params.id);
-  const updatedAdmin = AdminModel.update(id, req.body);
-  
-  if (updatedAdmin) {
-    res.json(updatedAdmin);
-  } else {
-    res.status(404).json({ message: "Admin not found" });
+export const updateAdmin = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return sendError(res, "Invalid admin ID", undefined, 400);
+    }
+
+    // If password is being updated, hash it
+    if (req.body.password) {
+      req.body.password = await hashPassword(req.body.password);
+    }
+
+    const updatedAdmin = AdminModel.update(id, req.body);
+    
+    if (updatedAdmin) {
+      const { password, ...adminWithoutPassword } = updatedAdmin;
+      sendSuccess(res, "Admin updated successfully", adminWithoutPassword);
+    } else {
+      sendError(res, "Admin not found", undefined, 404);
+    }
+  } catch (error) {
+    sendError(res, "Failed to update admin", (error as Error).message, 500);
   }
 };
 
 export const deleteAdmin = (req: Request, res: Response) => {
-  const id = parseInt(req.params.id);
-  const deleted = AdminModel.delete(id);
-  
-  if (deleted) {
-    res.json({ message: "Admin deleted successfully" });
-  } else {
-    res.status(404).json({ message: "Admin not found" });
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return sendError(res, "Invalid admin ID", undefined, 400);
+    }
+
+    const deleted = AdminModel.delete(id);
+    
+    if (deleted) {
+      sendSuccess(res, "Admin deleted successfully");
+    } else {
+      sendError(res, "Admin not found", undefined, 404);
+    }
+  } catch (error) {
+    sendError(res, "Failed to delete admin", (error as Error).message, 500);
+  }
+};
+
+// Dashboard statistics
+export const getDashboardStats = (req: Request, res: Response) => {
+  try {
+    const candidates = CandidateModel.getAll();
+    const firms = FirmModel.getAll();
+    
+    const stats = {
+      totalCandidates: candidates.length,
+      pendingCandidates: candidates.filter(c => c.status === 'Pending').length,
+      approvedCandidates: candidates.filter(c => c.status === 'Approved').length,
+      rejectedCandidates: candidates.filter(c => c.status === 'Rejected').length,
+      totalFirms: firms.length,
+      pendingFirms: firms.filter(f => f.status === 'Pending').length,
+      approvedFirms: firms.filter(f => f.status === 'Approved').length,
+      rejectedFirms: firms.filter(f => f.status === 'Rejected').length,
+    };
+    
+    sendSuccess(res, "Dashboard statistics retrieved successfully", stats);
+  } catch (error) {
+    sendError(res, "Failed to retrieve dashboard statistics", (error as Error).message, 500);
+  }
+};
+
+// Approve/Reject candidates and firms
+export const updateCandidateStatus = (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { status } = req.body;
+    
+    if (!['Pending', 'Approved', 'Rejected'].includes(status)) {
+      return sendError(res, "Invalid status. Must be Pending, Approved, or Rejected", undefined, 400);
+    }
+    
+    const updatedCandidate = CandidateModel.update(id, { status });
+    
+    if (updatedCandidate) {
+      const { password, ...candidateWithoutPassword } = updatedCandidate;
+      sendSuccess(res, `Candidate status updated to ${status}`, candidateWithoutPassword);
+    } else {
+      sendError(res, "Candidate not found", undefined, 404);
+    }
+  } catch (error) {
+    sendError(res, "Failed to update candidate status", (error as Error).message, 500);
+  }
+};
+
+export const updateFirmStatus = (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { status } = req.body;
+    
+    if (!['Pending', 'Approved', 'Rejected'].includes(status)) {
+      return sendError(res, "Invalid status. Must be Pending, Approved, or Rejected", undefined, 400);
+    }
+    
+    const updatedFirm = FirmModel.update(id, { status });
+    
+    if (updatedFirm) {
+      const { password, ...firmWithoutPassword } = updatedFirm;
+      sendSuccess(res, `Firm status updated to ${status}`, firmWithoutPassword);
+    } else {
+      sendError(res, "Firm not found", undefined, 404);
+    }
+  } catch (error) {
+    sendError(res, "Failed to update firm status", (error as Error).message, 500);
   }
 };
