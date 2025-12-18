@@ -5,16 +5,26 @@ import {
   registerCandidate,
   loginCandidate,
   updateCandidate,
-  deleteCandidate
+  deleteCandidate,
+  getCandidateProfile
 } from "../controllers/candidate.controller";
+import { candidateRegistrationValidator, candidateLoginValidator } from "../validators/candidate.validator";
+import { handleValidationErrors } from "../middleware/validation.middleware";
+import { authenticateToken, authorizeRoles } from "../middleware/auth.middleware";
 
 const router = Router();
 
-router.get("/candidates", getAllCandidates);
-router.get("/candidates/:id", getCandidateById);
-router.post("/candidates/register", registerCandidate);
-router.post("/candidates/login", loginCandidate);
-router.put("/candidates/:id", updateCandidate);
-router.delete("/candidates/:id", deleteCandidate);
+// Public routes
+router.post("/candidates/register", candidateRegistrationValidator, handleValidationErrors, registerCandidate);
+router.post("/candidates/login", candidateLoginValidator, handleValidationErrors, loginCandidate);
+
+// Protected routes - Admin only
+router.get("/candidates", authenticateToken, authorizeRoles('SuperAdmin', 'Admin'), getAllCandidates);
+router.get("/candidates/:id", authenticateToken, authorizeRoles('SuperAdmin', 'Admin'), getCandidateById);
+router.delete("/candidates/:id", authenticateToken, authorizeRoles('SuperAdmin', 'Admin'), deleteCandidate);
+
+// Protected routes - Candidate or Admin
+router.get("/candidates/profile/me", authenticateToken, getCandidateProfile);
+router.put("/candidates/:id", authenticateToken, updateCandidate);
 
 export default router;
