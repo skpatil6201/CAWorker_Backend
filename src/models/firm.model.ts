@@ -1,3 +1,5 @@
+import mongoose, { Document, Schema } from 'mongoose';
+
 export interface Partner {
   name: string;
   qualification: string;
@@ -6,11 +8,10 @@ export interface Partner {
   contact: string;
 }
 
-export interface Firm {
-  id: number;
+export interface IFirm extends Document {
   firmName: string;
   registrationNumber: string;
-  dateOfRegistration: string;
+  dateOfRegistration: Date;
   panGstNumber: string;
   firmType: "Partnership" | "LLP" | "Private Ltd" | "Others";
   firmTypeOther?: string;
@@ -26,52 +27,50 @@ export interface Firm {
   documents: string[];
   status: "Pending" | "Approved" | "Rejected";
   createdAt: Date;
+  updatedAt: Date;
 }
 
-class FirmModel {
-  private firms: Firm[] = [];
-  private nextId: number = 1;
+const PartnerSchema = new Schema<Partner>({
+  name: { type: String, required: true },
+  qualification: { type: String, required: true },
+  membershipNo: { type: String, required: true },
+  designation: { type: String, required: true },
+  contact: { type: String, required: true }
+});
 
-  getAll(): Firm[] {
-    return this.firms;
+const FirmSchema = new Schema<IFirm>({
+  firmName: { type: String, required: true },
+  registrationNumber: { type: String, required: true },
+  dateOfRegistration: { type: Date, required: true },
+  panGstNumber: { type: String, required: true },
+  firmType: { 
+    type: String, 
+    enum: ["Partnership", "LLP", "Private Ltd", "Others"],
+    required: true 
+  },
+  firmTypeOther: { type: String },
+  headOfficeAddress: { type: String, required: true },
+  cityStatePin: { type: String, required: true },
+  firmContactNumber: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  website: { type: String },
+  partners: [PartnerSchema],
+  areasOfPractice: [{ type: String }],
+  otherPracticeArea: { type: String },
+  documents: [{ type: String }],
+  status: { 
+    type: String, 
+    enum: ["Pending", "Approved", "Rejected"],
+    default: "Pending"
   }
+}, {
+  timestamps: true
+});
 
-  getById(id: number): Firm | undefined {
-    return this.firms.find(f => f.id === id);
-  }
+// Create indexes
+FirmSchema.index({ email: 1 });
+FirmSchema.index({ registrationNumber: 1 });
+FirmSchema.index({ status: 1 });
 
-  getByEmail(email: string): Firm | undefined {
-    return this.firms.find(f => f.email === email);
-  }
-
-  create(firmData: Omit<Firm, 'id' | 'createdAt' | 'status'>): Firm {
-    const newFirm: Firm = {
-      id: this.nextId++,
-      ...firmData,
-      status: "Pending",
-      createdAt: new Date()
-    };
-    this.firms.push(newFirm);
-    return newFirm;
-  }
-
-  update(id: number, firmData: Partial<Firm>): Firm | null {
-    const index = this.firms.findIndex(f => f.id === id);
-    if (index !== -1) {
-      this.firms[index] = { ...this.firms[index], ...firmData, id };
-      return this.firms[index];
-    }
-    return null;
-  }
-
-  delete(id: number): boolean {
-    const index = this.firms.findIndex(f => f.id === id);
-    if (index !== -1) {
-      this.firms.splice(index, 1);
-      return true;
-    }
-    return false;
-  }
-}
-
-export default new FirmModel();
+export default mongoose.model<IFirm>('Firm', FirmSchema);

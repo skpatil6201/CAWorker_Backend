@@ -1,31 +1,25 @@
 import { Request, Response } from "express";
-import FirmModel from "../models/firm.model";
+import Firm from "../models/firm.model";
 import { hashPassword, comparePassword, generateToken } from "../utils/auth";
 import { sendSuccess, sendError } from "../utils/response";
 import { AuthRequest } from "../middleware/auth.middleware";
 
-export const getAllFirms = (req: Request, res: Response) => {
+export const getAllFirms = async (req: Request, res: Response) => {
   try {
-    const firms = FirmModel.getAll();
-    // Remove passwords from response
-    const firmsWithoutPasswords = firms.map(({ password, ...firm }) => firm);
-    sendSuccess(res, "Firms retrieved successfully", firmsWithoutPasswords);
+    const firms = await Firm.find().select('-password');
+    sendSuccess(res, "Firms retrieved successfully", firms);
   } catch (error) {
     sendError(res, "Failed to retrieve firms", (error as Error).message, 500);
   }
 };
 
-export const getFirmById = (req: Request, res: Response) => {
+export const getFirmById = async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      return sendError(res, "Invalid firm ID", undefined, 400);
-    }
-
-    const firm = FirmModel.getById(id);
+    const id = req.params.id;
+    
+    const firm = await Firm.findById(id).select('-password');
     if (firm) {
-      const { password, ...firmWithoutPassword } = firm;
-      sendSuccess(res, "Firm retrieved successfully", firmWithoutPassword);
+      sendSuccess(res, "Firm retrieved successfully", firm);
     } else {
       sendError(res, "Firm not found", undefined, 404);
     }
@@ -56,7 +50,7 @@ export const registerFirm = async (req: Request, res: Response) => {
     } = req.body;
 
     // Check if firm already exists
-    const existingFirm = FirmModel.getByEmail(email);
+    const existingFirm = await Firm.findOne({ email });
     if (existingFirm) {
       return sendError(res, "Firm already exists with this email", undefined, 409);
     }
@@ -64,7 +58,7 @@ export const registerFirm = async (req: Request, res: Response) => {
     // Hash password
     const hashedPassword = await hashPassword(password);
     
-    const newFirm = FirmModel.create({
+    const newFirm = new Firm({
       firmName,
       registrationNumber,
       dateOfRegistration,
@@ -83,17 +77,20 @@ export const registerFirm = async (req: Request, res: Response) => {
       documents: documents || []
     });
 
+    const savedFirm = await newFirm.save();
+
     // Generate token
     const token = generateToken({
-      id: newFirm.id,
-      email: newFirm.email,
+      id: savedFirm._id.toString(),
+      email: savedFirm.email,
       userType: 'firm'
     });
 
-    const { password: _, ...firmWithoutPassword } = newFirm;
+    const firmResponse = savedFirm.toObject();
+    delete firmResponse.password;
     
     sendSuccess(res, "Firm registered successfully", {
-      firm: firmWithoutPassword,
+      firm: firmResponse,
       token
     }, 201);
   } catch (error) {
@@ -105,7 +102,7 @@ export const loginFirm = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     
-    const firm = FirmModel.getByEmail(email);
+    const firm = await Firm.findOne({ email });
     if (!firm) {
       return sendError(res, "Invalid credentials", undefined, 401);
     }
@@ -117,15 +114,16 @@ export const loginFirm = async (req: Request, res: Response) => {
 
     // Generate token
     const token = generateToken({
-      id: firm.id,
+      id: firm._id.toString(),
       email: firm.email,
       userType: 'firm'
     });
 
-    const { password: _, ...firmWithoutPassword } = firm;
+    const firmResponse = firm.toObject();
+    delete firmResponse.password;
     
     sendSuccess(res, "Login successful", {
-      firm: firmWithoutPassword,
+      firm: firmResponse,
       token
     });
   } catch (error) {
@@ -135,21 +133,21 @@ export const loginFirm = async (req: Request, res: Response) => {
 
 export const updateFirm = async (req: AuthRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      return sendError(res, "Invalid firm ID", undefined, 400);
-    }
+    const id = req.params.id;
 
     // If password is being updated, hash it
     if (req.body.password) {
       req.body.password = await hashPassword(req.body.password);
     }
 
-    const updatedFirm = FirmModel.update(id, req.body);
+    const updatedFirm = await Firm.findByIdAndUpdate(
+      id, 
+      req.body, 
+      { new: true, runValidators: true }
+    ).select('-password');
     
     if (updatedFirm) {
-      const { password, ...firmWithoutPassword } = updatedFirm;
-      sendSuccess(res, "Firm updated successfully", firmWithoutPassword);
+      sendSuccess(res, "Firm updated successfully", updatedFirm);
     } else {
       sendError(res, "Firm not found", undefined, 404);
     }
@@ -158,16 +156,13 @@ export const updateFirm = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const deleteFirm = (req: Request, res: Response) => {
+export const deleteFirm = async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      return sendError(res, "Invalid firm ID", undefined, 400);
-    }
+    const id = req.params.id;
 
-    const deleted = FirmModel.delete(id);
+    const deletedFirm = await Firm.findByIdAndDelete(id);
     
-    if (deleted) {
+    if (deletedFirm) {
       sendSuccess(res, "Firm deleted successfully");
     } else {
       sendError(res, "Firm not found", undefined, 404);
@@ -178,14 +173,13 @@ export const deleteFirm = (req: Request, res: Response) => {
 };
 
 // Get firm profile (for authenticated firm)
-export const getFirmProfile = (req: AuthRequest, res: Response) => {
+export const getFirmProfile = async (req: AuthRequest, res: Response) => {
   try {
     const firmId = req.user.id;
-    const firm = FirmModel.getById(firmId);
+    const firm = await Firm.findById(firmId).select('-password');
     
     if (firm) {
-      const { password, ...firmWithoutPassword } = firm;
-      sendSuccess(res, "Profile retrieved successfully", firmWithoutPassword);
+      sendSuccess(res, "Profile retrieved successfully", firm);
     } else {
       sendError(res, "Firm not found", undefined, 404);
     }

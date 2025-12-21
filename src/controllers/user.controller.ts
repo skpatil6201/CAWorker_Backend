@@ -1,30 +1,24 @@
 import { Request, Response } from "express";
-import UserModel from "../models/user.model";
+import User from "../models/user.model";
 import { hashPassword } from "../utils/auth";
 import { sendSuccess, sendError } from "../utils/response";
 
-export const getAllUsers = (req: Request, res: Response) => {
+export const getAllUsers = async (req: Request, res: Response) => {
   try {
-    const users = UserModel.getAll();
-    // Remove passwords from response
-    const usersWithoutPasswords = users.map(({ password, ...user }) => user);
-    sendSuccess(res, "Users retrieved successfully", usersWithoutPasswords);
+    const users = await User.find().select('-password');
+    sendSuccess(res, "Users retrieved successfully", users);
   } catch (error) {
     sendError(res, "Failed to retrieve users", (error as Error).message, 500);
   }
 };
 
-export const getUserById = (req: Request, res: Response) => {
+export const getUserById = async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      return sendError(res, "Invalid user ID", undefined, 400);
-    }
+    const id = req.params.id;
 
-    const user = UserModel.getById(id);
+    const user = await User.findById(id).select('-password');
     if (user) {
-      const { password, ...userWithoutPassword } = user;
-      sendSuccess(res, "User retrieved successfully", userWithoutPassword);
+      sendSuccess(res, "User retrieved successfully", user);
     } else {
       sendError(res, "User not found", undefined, 404);
     }
@@ -38,7 +32,7 @@ export const createUser = async (req: Request, res: Response) => {
     const { name, address, phone, email, password, userType } = req.body;
 
     // Check if user already exists
-    const existingUser = UserModel.getAll().find(u => u.email === email);
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
       return sendError(res, "User already exists with this email", undefined, 409);
     }
@@ -46,7 +40,7 @@ export const createUser = async (req: Request, res: Response) => {
     // Hash password
     const hashedPassword = await hashPassword(password);
     
-    const newUser = UserModel.create({
+    const newUser = new User({
       name,
       address,
       phone,
@@ -55,8 +49,11 @@ export const createUser = async (req: Request, res: Response) => {
       userType
     });
 
-    const { password: _, ...userWithoutPassword } = newUser;
-    sendSuccess(res, "User created successfully", userWithoutPassword, 201);
+    const savedUser = await newUser.save();
+    const userResponse = savedUser.toObject();
+    delete userResponse.password;
+    
+    sendSuccess(res, "User created successfully", userResponse, 201);
   } catch (error) {
     sendError(res, "Failed to create user", (error as Error).message, 500);
   }
@@ -64,21 +61,21 @@ export const createUser = async (req: Request, res: Response) => {
 
 export const updateUser = async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      return sendError(res, "Invalid user ID", undefined, 400);
-    }
+    const id = req.params.id;
 
     // If password is being updated, hash it
     if (req.body.password) {
       req.body.password = await hashPassword(req.body.password);
     }
 
-    const updatedUser = UserModel.update(id, req.body);
+    const updatedUser = await User.findByIdAndUpdate(
+      id, 
+      req.body, 
+      { new: true, runValidators: true }
+    ).select('-password');
     
     if (updatedUser) {
-      const { password, ...userWithoutPassword } = updatedUser;
-      sendSuccess(res, "User updated successfully", userWithoutPassword);
+      sendSuccess(res, "User updated successfully", updatedUser);
     } else {
       sendError(res, "User not found", undefined, 404);
     }
@@ -87,16 +84,13 @@ export const updateUser = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteUser = (req: Request, res: Response) => {
+export const deleteUser = async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      return sendError(res, "Invalid user ID", undefined, 400);
-    }
+    const id = req.params.id;
 
-    const deleted = UserModel.delete(id);
+    const deletedUser = await User.findByIdAndDelete(id);
     
-    if (deleted) {
+    if (deletedUser) {
       sendSuccess(res, "User deleted successfully");
     } else {
       sendError(res, "User not found", undefined, 404);

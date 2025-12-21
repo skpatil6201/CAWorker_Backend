@@ -1,33 +1,27 @@
 import { Request, Response } from "express";
-import AdminModel from "../models/admin.model";
-import CandidateModel from "../models/candidate.model";
-import FirmModel from "../models/firm.model";
+import Admin from "../models/admin.model";
+import Candidate from "../models/candidate.model";
+import Firm from "../models/firm.model";
 import { hashPassword, comparePassword, generateToken } from "../utils/auth";
 import { sendSuccess, sendError } from "../utils/response";
 import { AuthRequest } from "../middleware/auth.middleware";
 
-export const getAllAdmins = (req: Request, res: Response) => {
+export const getAllAdmins = async (req: Request, res: Response) => {
   try {
-    const admins = AdminModel.getAll();
-    // Remove passwords from response
-    const adminsWithoutPasswords = admins.map(({ password, ...admin }) => admin);
-    sendSuccess(res, "Admins retrieved successfully", adminsWithoutPasswords);
+    const admins = await Admin.find().select('-password');
+    sendSuccess(res, "Admins retrieved successfully", admins);
   } catch (error) {
     sendError(res, "Failed to retrieve admins", (error as Error).message, 500);
   }
 };
 
-export const getAdminById = (req: Request, res: Response) => {
+export const getAdminById = async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      return sendError(res, "Invalid admin ID", undefined, 400);
-    }
+    const id = req.params.id;
 
-    const admin = AdminModel.getById(id);
+    const admin = await Admin.findById(id).select('-password');
     if (admin) {
-      const { password, ...adminWithoutPassword } = admin;
-      sendSuccess(res, "Admin retrieved successfully", adminWithoutPassword);
+      sendSuccess(res, "Admin retrieved successfully", admin);
     } else {
       sendError(res, "Admin not found", undefined, 404);
     }
@@ -46,9 +40,9 @@ export const loginAdmin = async (req: Request, res: Response) => {
 
     let admin;
     if (email) {
-      admin = AdminModel.getByEmail(email);
+      admin = await Admin.findOne({ email });
     } else if (username) {
-      admin = AdminModel.getByUsername(username);
+      admin = await Admin.findOne({ username });
     }
 
     if (!admin) {
@@ -62,17 +56,18 @@ export const loginAdmin = async (req: Request, res: Response) => {
 
     // Generate token
     const token = generateToken({
-      id: admin.id,
+      id: admin._id.toString(),
       email: admin.email,
       username: admin.username,
       role: admin.role,
       userType: 'admin'
     });
 
-    const { password: _, ...adminWithoutPassword } = admin;
+    const adminResponse = admin.toObject();
+    delete adminResponse.password;
     
     sendSuccess(res, "Login successful", {
-      admin: adminWithoutPassword,
+      admin: adminResponse,
       token
     });
   } catch (error) {
@@ -85,8 +80,8 @@ export const createAdmin = async (req: Request, res: Response) => {
     const { username, email, password, role } = req.body;
 
     // Check if admin already exists
-    const existingAdminByEmail = AdminModel.getByEmail(email);
-    const existingAdminByUsername = AdminModel.getByUsername(username);
+    const existingAdminByEmail = await Admin.findOne({ email });
+    const existingAdminByUsername = await Admin.findOne({ username });
     
     if (existingAdminByEmail) {
       return sendError(res, "Admin already exists with this email", undefined, 409);
@@ -99,16 +94,18 @@ export const createAdmin = async (req: Request, res: Response) => {
     // Hash password
     const hashedPassword = await hashPassword(password);
     
-    const newAdmin = AdminModel.create({
+    const newAdmin = new Admin({
       username,
       email,
       password: hashedPassword,
       role: role || "Admin"
     });
 
-    const { password: _, ...adminWithoutPassword } = newAdmin;
+    const savedAdmin = await newAdmin.save();
+    const adminResponse = savedAdmin.toObject();
+    delete adminResponse.password;
     
-    sendSuccess(res, "Admin created successfully", adminWithoutPassword, 201);
+    sendSuccess(res, "Admin created successfully", adminResponse, 201);
   } catch (error) {
     sendError(res, "Failed to create admin", (error as Error).message, 500);
   }
@@ -116,21 +113,21 @@ export const createAdmin = async (req: Request, res: Response) => {
 
 export const updateAdmin = async (req: AuthRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      return sendError(res, "Invalid admin ID", undefined, 400);
-    }
+    const id = req.params.id;
 
     // If password is being updated, hash it
     if (req.body.password) {
       req.body.password = await hashPassword(req.body.password);
     }
 
-    const updatedAdmin = AdminModel.update(id, req.body);
+    const updatedAdmin = await Admin.findByIdAndUpdate(
+      id, 
+      req.body, 
+      { new: true, runValidators: true }
+    ).select('-password');
     
     if (updatedAdmin) {
-      const { password, ...adminWithoutPassword } = updatedAdmin;
-      sendSuccess(res, "Admin updated successfully", adminWithoutPassword);
+      sendSuccess(res, "Admin updated successfully", updatedAdmin);
     } else {
       sendError(res, "Admin not found", undefined, 404);
     }
@@ -139,16 +136,13 @@ export const updateAdmin = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const deleteAdmin = (req: Request, res: Response) => {
+export const deleteAdmin = async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      return sendError(res, "Invalid admin ID", undefined, 400);
-    }
+    const id = req.params.id;
 
-    const deleted = AdminModel.delete(id);
+    const deletedAdmin = await Admin.findByIdAndDelete(id);
     
-    if (deleted) {
+    if (deletedAdmin) {
       sendSuccess(res, "Admin deleted successfully");
     } else {
       sendError(res, "Admin not found", undefined, 404);
@@ -159,10 +153,12 @@ export const deleteAdmin = (req: Request, res: Response) => {
 };
 
 // Dashboard statistics
-export const getDashboardStats = (req: Request, res: Response) => {
+export const getDashboardStats = async (req: Request, res: Response) => {
   try {
-    const candidates = CandidateModel.getAll();
-    const firms = FirmModel.getAll();
+    const [candidates, firms] = await Promise.all([
+      Candidate.find(),
+      Firm.find()
+    ]);
     
     const stats = {
       totalCandidates: candidates.length,
@@ -182,20 +178,23 @@ export const getDashboardStats = (req: Request, res: Response) => {
 };
 
 // Approve/Reject candidates and firms
-export const updateCandidateStatus = (req: Request, res: Response) => {
+export const updateCandidateStatus = async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = req.params.id;
     const { status } = req.body;
     
     if (!['Pending', 'Approved', 'Rejected'].includes(status)) {
       return sendError(res, "Invalid status. Must be Pending, Approved, or Rejected", undefined, 400);
     }
     
-    const updatedCandidate = CandidateModel.update(id, { status });
+    const updatedCandidate = await Candidate.findByIdAndUpdate(
+      id, 
+      { status }, 
+      { new: true, runValidators: true }
+    ).select('-password');
     
     if (updatedCandidate) {
-      const { password, ...candidateWithoutPassword } = updatedCandidate;
-      sendSuccess(res, `Candidate status updated to ${status}`, candidateWithoutPassword);
+      sendSuccess(res, `Candidate status updated to ${status}`, updatedCandidate);
     } else {
       sendError(res, "Candidate not found", undefined, 404);
     }
@@ -204,20 +203,23 @@ export const updateCandidateStatus = (req: Request, res: Response) => {
   }
 };
 
-export const updateFirmStatus = (req: Request, res: Response) => {
+export const updateFirmStatus = async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = req.params.id;
     const { status } = req.body;
     
     if (!['Pending', 'Approved', 'Rejected'].includes(status)) {
       return sendError(res, "Invalid status. Must be Pending, Approved, or Rejected", undefined, 400);
     }
     
-    const updatedFirm = FirmModel.update(id, { status });
+    const updatedFirm = await Firm.findByIdAndUpdate(
+      id, 
+      { status }, 
+      { new: true, runValidators: true }
+    ).select('-password');
     
     if (updatedFirm) {
-      const { password, ...firmWithoutPassword } = updatedFirm;
-      sendSuccess(res, `Firm status updated to ${status}`, firmWithoutPassword);
+      sendSuccess(res, `Firm status updated to ${status}`, updatedFirm);
     } else {
       sendError(res, "Firm not found", undefined, 404);
     }

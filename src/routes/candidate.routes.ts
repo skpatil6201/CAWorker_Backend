@@ -8,15 +8,13 @@ import {
   deleteCandidate,
   getCandidateProfile
 } from "../controllers/candidate.controller";
-import { candidateRegistrationValidator, candidateLoginValidator } from "../validators/candidate.validator";
-import { handleValidationErrors } from "../middleware/validation.middleware";
 import { authenticateToken, authorizeRoles } from "../middleware/auth.middleware";
 
 const router = Router();
 
 // Public routes
-router.post("/candidates/register", candidateRegistrationValidator, handleValidationErrors, registerCandidate);
-router.post("/candidates/login", candidateLoginValidator, handleValidationErrors, loginCandidate);
+router.post("/candidates/register", registerCandidate);
+router.post("/candidates/login", loginCandidate);
 
 // Protected routes - Admin only
 router.get("/candidates", authenticateToken, authorizeRoles('SuperAdmin', 'Admin'), getAllCandidates);

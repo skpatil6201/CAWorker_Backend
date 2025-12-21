@@ -1,31 +1,25 @@
 import { Request, Response } from "express";
-import CandidateModel from "../models/candidate.model";
+import Candidate from "../models/candidate.model";
 import { hashPassword, comparePassword, generateToken } from "../utils/auth";
 import { sendSuccess, sendError } from "../utils/response";
 import { AuthRequest } from "../middleware/auth.middleware";
 
-export const getAllCandidates = (req: Request, res: Response) => {
+export const getAllCandidates = async (req: Request, res: Response) => {
   try {
-    const candidates = CandidateModel.getAll();
-    // Remove passwords from response
-    const candidatesWithoutPasswords = candidates.map(({ password, ...candidate }) => candidate);
-    sendSuccess(res, "Candidates retrieved successfully", candidatesWithoutPasswords);
+    const candidates = await Candidate.find().select('-password');
+    sendSuccess(res, "Candidates retrieved successfully", candidates);
   } catch (error) {
     sendError(res, "Failed to retrieve candidates", (error as Error).message, 500);
   }
 };
 
-export const getCandidateById = (req: Request, res: Response) => {
+export const getCandidateById = async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      return sendError(res, "Invalid candidate ID", undefined, 400);
-    }
+    const id = req.params.id;
 
-    const candidate = CandidateModel.getById(id);
+    const candidate = await Candidate.findById(id).select('-password');
     if (candidate) {
-      const { password, ...candidateWithoutPassword } = candidate;
-      sendSuccess(res, "Candidate retrieved successfully", candidateWithoutPassword);
+      sendSuccess(res, "Candidate retrieved successfully", candidate);
     } else {
       sendError(res, "Candidate not found", undefined, 404);
     }
@@ -56,7 +50,7 @@ export const registerCandidate = async (req: Request, res: Response) => {
     } = req.body;
 
     // Check if candidate already exists
-    const existingCandidate = CandidateModel.getByEmail(email);
+    const existingCandidate = await Candidate.findOne({ email });
     if (existingCandidate) {
       return sendError(res, "Candidate already exists with this email", undefined, 409);
     }
@@ -64,7 +58,7 @@ export const registerCandidate = async (req: Request, res: Response) => {
     // Hash password
     const hashedPassword = await hashPassword(password);
     
-    const newCandidate = CandidateModel.create({
+    const newCandidate = new Candidate({
       fullName,
       dateOfBirth,
       gender,
@@ -83,17 +77,20 @@ export const registerCandidate = async (req: Request, res: Response) => {
       documents: documents || []
     });
 
+    const savedCandidate = await newCandidate.save();
+
     // Generate token
     const token = generateToken({
-      id: newCandidate.id,
-      email: newCandidate.email,
+      id: savedCandidate._id.toString(),
+      email: savedCandidate.email,
       userType: 'candidate'
     });
 
-    const { password: _, ...candidateWithoutPassword } = newCandidate;
+    const candidateResponse = savedCandidate.toObject();
+    delete candidateResponse.password;
     
     sendSuccess(res, "Candidate registered successfully", {
-      candidate: candidateWithoutPassword,
+      candidate: candidateResponse,
       token
     }, 201);
   } catch (error) {
@@ -105,7 +102,7 @@ export const loginCandidate = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     
-    const candidate = CandidateModel.getByEmail(email);
+    const candidate = await Candidate.findOne({ email });
     if (!candidate) {
       return sendError(res, "Invalid credentials", undefined, 401);
     }
@@ -117,15 +114,16 @@ export const loginCandidate = async (req: Request, res: Response) => {
 
     // Generate token
     const token = generateToken({
-      id: candidate.id,
+      id: candidate._id.toString(),
       email: candidate.email,
       userType: 'candidate'
     });
 
-    const { password: _, ...candidateWithoutPassword } = candidate;
+    const candidateResponse = candidate.toObject();
+    delete candidateResponse.password;
     
     sendSuccess(res, "Login successful", {
-      candidate: candidateWithoutPassword,
+      candidate: candidateResponse,
       token
     });
   } catch (error) {
@@ -135,21 +133,21 @@ export const loginCandidate = async (req: Request, res: Response) => {
 
 export const updateCandidate = async (req: AuthRequest, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      return sendError(res, "Invalid candidate ID", undefined, 400);
-    }
+    const id = req.params.id;
 
     // If password is being updated, hash it
     if (req.body.password) {
       req.body.password = await hashPassword(req.body.password);
     }
 
-    const updatedCandidate = CandidateModel.update(id, req.body);
+    const updatedCandidate = await Candidate.findByIdAndUpdate(
+      id, 
+      req.body, 
+      { new: true, runValidators: true }
+    ).select('-password');
     
     if (updatedCandidate) {
-      const { password, ...candidateWithoutPassword } = updatedCandidate;
-      sendSuccess(res, "Candidate updated successfully", candidateWithoutPassword);
+      sendSuccess(res, "Candidate updated successfully", updatedCandidate);
     } else {
       sendError(res, "Candidate not found", undefined, 404);
     }
@@ -158,16 +156,13 @@ export const updateCandidate = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const deleteCandidate = (req: Request, res: Response) => {
+export const deleteCandidate = async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      return sendError(res, "Invalid candidate ID", undefined, 400);
-    }
+    const id = req.params.id;
 
-    const deleted = CandidateModel.delete(id);
+    const deletedCandidate = await Candidate.findByIdAndDelete(id);
     
-    if (deleted) {
+    if (deletedCandidate) {
       sendSuccess(res, "Candidate deleted successfully");
     } else {
       sendError(res, "Candidate not found", undefined, 404);
@@ -178,14 +173,13 @@ export const deleteCandidate = (req: Request, res: Response) => {
 };
 
 // Get candidate profile (for authenticated candidate)
-export const getCandidateProfile = (req: AuthRequest, res: Response) => {
+export const getCandidateProfile = async (req: AuthRequest, res: Response) => {
   try {
     const candidateId = req.user.id;
-    const candidate = CandidateModel.getById(candidateId);
+    const candidate = await Candidate.findById(candidateId).select('-password');
     
     if (candidate) {
-      const { password, ...candidateWithoutPassword } = candidate;
-      sendSuccess(res, "Profile retrieved successfully", candidateWithoutPassword);
+      sendSuccess(res, "Profile retrieved successfully", candidate);
     } else {
       sendError(res, "Candidate not found", undefined, 404);
     }
