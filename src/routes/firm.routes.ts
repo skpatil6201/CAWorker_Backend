@@ -8,15 +8,13 @@ import {
   deleteFirm,
   getFirmProfile
 } from "../controllers/firm.controller";
-import { firmRegistrationValidator, firmLoginValidator } from "../validators/firm.validator";
-import { handleValidationErrors } from "../middleware/validation.middleware";
 import { authenticateToken, authorizeRoles } from "../middleware/auth.middleware";
 
 const router = Router();
 
 // Public routes
-router.post("/firms/register", firmRegistrationValidator, handleValidationErrors, registerFirm);
-router.post("/firms/login", firmLoginValidator, handleValidationErrors, loginFirm);
+router.post("/firms/register", registerFirm);
+router.post("/firms/login", loginFirm);
 
 // Protected routes - Admin only
 router.get("/firms", authenticateToken, authorizeRoles('SuperAdmin', 'Admin'), getAllFirms);
