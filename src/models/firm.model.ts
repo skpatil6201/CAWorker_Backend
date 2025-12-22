@@ -5,7 +5,7 @@ export interface Partner {
   qualification: string;
   membershipNo: string;
   designation: string;
-  contact: string;
+  contact?: string;
 }
 
 export interface IFirm extends Document {
@@ -35,7 +35,7 @@ const PartnerSchema = new Schema<Partner>({
   qualification: { type: String, required: true },
   membershipNo: { type: String, required: true },
   designation: { type: String, required: true },
-  contact: { type: String, required: true }
+  contact: { type: String }
 });
 
 const FirmSchema = new Schema<IFirm>({
@@ -67,10 +67,5 @@ const FirmSchema = new Schema<IFirm>({
 }, {
   timestamps: true
 });
-
-// Create indexes
-FirmSchema.index({ email: 1 });
-FirmSchema.index({ registrationNumber: 1 });
-FirmSchema.index({ status: 1 });
 
 export default mongoose.model<IFirm>('Firm', FirmSchema);
