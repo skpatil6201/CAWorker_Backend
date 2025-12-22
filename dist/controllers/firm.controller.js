@@ -1,15 +1,4 @@
 "use strict";
-var __rest = (this && this.__rest) || function (s, e) {
-    var t = {};
-    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
-        t[p] = s[p];
-    if (s != null && typeof Object.getOwnPropertySymbols === "function")
-        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
-            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
-                t[p[i]] = s[p[i]];
-        }
-    return t;
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -18,31 +7,22 @@ exports.getFirmProfile = exports.deleteFirm = exports.updateFirm = exports.login
 const firm_model_1 = __importDefault(require("../models/firm.model"));
 const auth_1 = require("../utils/auth");
 const response_1 = require("../utils/response");
-const getAllFirms = (req, res) => {
+const getAllFirms = async (req, res) => {
     try {
-        const firms = firm_model_1.default.getAll();
-        // Remove passwords from response
-        const firmsWithoutPasswords = firms.map((_a) => {
-            var { password } = _a, firm = __rest(_a, ["password"]);
-            return firm;
-        });
-        (0, response_1.sendSuccess)(res, "Firms retrieved successfully", firmsWithoutPasswords);
+        const firms = await firm_model_1.default.find().select('-password');
+        (0, response_1.sendSuccess)(res, "Firms retrieved successfully", firms);
     }
     catch (error) {
         (0, response_1.sendError)(res, "Failed to retrieve firms", error.message, 500);
     }
 };
 exports.getAllFirms = getAllFirms;
-const getFirmById = (req, res) => {
+const getFirmById = async (req, res) => {
     try {
-        const id = parseInt(req.params.id);
-        if (isNaN(id)) {
-            return (0, response_1.sendError)(res, "Invalid firm ID", undefined, 400);
-        }
-        const firm = firm_model_1.default.getById(id);
+        const id = req.params.id;
+        const firm = await firm_model_1.default.findById(id).select('-password');
         if (firm) {
-            const { password } = firm, firmWithoutPassword = __rest(firm, ["password"]);
-            (0, response_1.sendSuccess)(res, "Firm retrieved successfully", firmWithoutPassword);
+            (0, response_1.sendSuccess)(res, "Firm retrieved successfully", firm);
         }
         else {
             (0, response_1.sendError)(res, "Firm not found", undefined, 404);
@@ -56,14 +36,15 @@ exports.getFirmById = getFirmById;
 const registerFirm = async (req, res) => {
     try {
         const { firmName, registrationNumber, dateOfRegistration, panGstNumber, firmType, firmTypeOther, headOfficeAddress, cityStatePin, firmContactNumber, email, password, website, partners, areasOfPractice, otherPracticeArea, documents } = req.body;
+        console.log("req.body", req.body);
         // Check if firm already exists
-        const existingFirm = firm_model_1.default.getByEmail(email);
+        const existingFirm = await firm_model_1.default.findOne({ email });
         if (existingFirm) {
             return (0, response_1.sendError)(res, "Firm already exists with this email", undefined, 409);
         }
         // Hash password
         const hashedPassword = await (0, auth_1.hashPassword)(password);
-        const newFirm = firm_model_1.default.create({
+        const newFirm = new firm_model_1.default({
             firmName,
             registrationNumber,
             dateOfRegistration,
@@ -81,15 +62,17 @@ const registerFirm = async (req, res) => {
             otherPracticeArea,
             documents: documents || []
         });
+        const savedFirm = await newFirm.save();
         // Generate token
         const token = (0, auth_1.generateToken)({
-            id: newFirm.id,
-            email: newFirm.email,
+            id: savedFirm._id.toString(),
+            email: savedFirm.email,
             userType: 'firm'
         });
-        const { password: _ } = newFirm, firmWithoutPassword = __rest(newFirm, ["password"]);
+        const firmResponse = savedFirm.toObject();
+        delete firmResponse.password;
         (0, response_1.sendSuccess)(res, "Firm registered successfully", {
-            firm: firmWithoutPassword,
+            firm: firmResponse,
             token
         }, 201);
     }
@@ -101,7 +84,7 @@ exports.registerFirm = registerFirm;
 const loginFirm = async (req, res) => {
     try {
         const { email, password } = req.body;
-        const firm = firm_model_1.default.getByEmail(email);
+        const firm = await firm_model_1.default.findOne({ email });
         if (!firm) {
             return (0, response_1.sendError)(res, "Invalid credentials", undefined, 401);
         }
@@ -111,13 +94,14 @@ const loginFirm = async (req, res) => {
         }
         // Generate token
         const token = (0, auth_1.generateToken)({
-            id: firm.id,
+            id: firm._id.toString(),
             email: firm.email,
             userType: 'firm'
         });
-        const { password: _ } = firm, firmWithoutPassword = __rest(firm, ["password"]);
+        const firmResponse = firm.toObject();
+        delete firmResponse.password;
         (0, response_1.sendSuccess)(res, "Login successful", {
-            firm: firmWithoutPassword,
+            firm: firmResponse,
             token
         });
     }
@@ -128,18 +112,14 @@ const loginFirm = async (req, res) => {
 exports.loginFirm = loginFirm;
 const updateFirm = async (req, res) => {
     try {
-        const id = parseInt(req.params.id);
-        if (isNaN(id)) {
-            return (0, response_1.sendError)(res, "Invalid firm ID", undefined, 400);
-        }
+        const id = req.params.id;
         // If password is being updated, hash it
         if (req.body.password) {
             req.body.password = await (0, auth_1.hashPassword)(req.body.password);
         }
-        const updatedFirm = firm_model_1.default.update(id, req.body);
+        const updatedFirm = await firm_model_1.default.findByIdAndUpdate(id, req.body, { new: true, runValidators: true }).select('-password');
         if (updatedFirm) {
-            const { password } = updatedFirm, firmWithoutPassword = __rest(updatedFirm, ["password"]);
-            (0, response_1.sendSuccess)(res, "Firm updated successfully", firmWithoutPassword);
+            (0, response_1.sendSuccess)(res, "Firm updated successfully", updatedFirm);
         }
         else {
             (0, response_1.sendError)(res, "Firm not found", undefined, 404);
@@ -150,14 +130,11 @@ const updateFirm = async (req, res) => {
     }
 };
 exports.updateFirm = updateFirm;
-const deleteFirm = (req, res) => {
+const deleteFirm = async (req, res) => {
     try {
-        const id = parseInt(req.params.id);
-        if (isNaN(id)) {
-            return (0, response_1.sendError)(res, "Invalid firm ID", undefined, 400);
-        }
-        const deleted = firm_model_1.default.delete(id);
-        if (deleted) {
+        const id = req.params.id;
+        const deletedFirm = await firm_model_1.default.findByIdAndDelete(id);
+        if (deletedFirm) {
             (0, response_1.sendSuccess)(res, "Firm deleted successfully");
         }
         else {
@@ -170,13 +147,12 @@ const deleteFirm = (req, res) => {
 };
 exports.deleteFirm = deleteFirm;
 // Get firm profile (for authenticated firm)
-const getFirmProfile = (req, res) => {
+const getFirmProfile = async (req, res) => {
     try {
         const firmId = req.user.id;
-        const firm = firm_model_1.default.getById(firmId);
+        const firm = await firm_model_1.default.findById(firmId).select('-password');
         if (firm) {
-            const { password } = firm, firmWithoutPassword = __rest(firm, ["password"]);
-            (0, response_1.sendSuccess)(res, "Profile retrieved successfully", firmWithoutPassword);
+            (0, response_1.sendSuccess)(res, "Profile retrieved successfully", firm);
         }
         else {
             (0, response_1.sendError)(res, "Firm not found", undefined, 404);
