@@ -1,15 +1,4 @@
 "use strict";
-var __rest = (this && this.__rest) || function (s, e) {
-    var t = {};
-    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
-        t[p] = s[p];
-    if (s != null && typeof Object.getOwnPropertySymbols === "function")
-        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
-            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
-                t[p[i]] = s[p[i]];
-        }
-    return t;
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -20,31 +9,22 @@ const candidate_model_1 = __importDefault(require("../models/candidate.model"));
 const firm_model_1 = __importDefault(require("../models/firm.model"));
 const auth_1 = require("../utils/auth");
 const response_1 = require("../utils/response");
-const getAllAdmins = (req, res) => {
+const getAllAdmins = async (req, res) => {
     try {
-        const admins = admin_model_1.default.getAll();
-        // Remove passwords from response
-        const adminsWithoutPasswords = admins.map((_a) => {
-            var { password } = _a, admin = __rest(_a, ["password"]);
-            return admin;
-        });
-        (0, response_1.sendSuccess)(res, "Admins retrieved successfully", adminsWithoutPasswords);
+        const admins = await admin_model_1.default.find().select('-password');
+        (0, response_1.sendSuccess)(res, "Admins retrieved successfully", admins);
     }
     catch (error) {
         (0, response_1.sendError)(res, "Failed to retrieve admins", error.message, 500);
     }
 };
 exports.getAllAdmins = getAllAdmins;
-const getAdminById = (req, res) => {
+const getAdminById = async (req, res) => {
     try {
-        const id = parseInt(req.params.id);
-        if (isNaN(id)) {
-            return (0, response_1.sendError)(res, "Invalid admin ID", undefined, 400);
-        }
-        const admin = admin_model_1.default.getById(id);
+        const id = req.params.id;
+        const admin = await admin_model_1.default.findById(id).select('-password');
         if (admin) {
-            const { password } = admin, adminWithoutPassword = __rest(admin, ["password"]);
-            (0, response_1.sendSuccess)(res, "Admin retrieved successfully", adminWithoutPassword);
+            (0, response_1.sendSuccess)(res, "Admin retrieved successfully", admin);
         }
         else {
             (0, response_1.sendError)(res, "Admin not found", undefined, 404);
@@ -63,10 +43,10 @@ const loginAdmin = async (req, res) => {
         }
         let admin;
         if (email) {
-            admin = admin_model_1.default.getByEmail(email);
+            admin = await admin_model_1.default.findOne({ email });
         }
         else if (username) {
-            admin = admin_model_1.default.getByUsername(username);
+            admin = await admin_model_1.default.findOne({ username });
         }
         if (!admin) {
             return (0, response_1.sendError)(res, "Invalid credentials", undefined, 401);
@@ -77,15 +57,16 @@ const loginAdmin = async (req, res) => {
         }
         // Generate token
         const token = (0, auth_1.generateToken)({
-            id: admin.id,
+            id: admin._id.toString(),
             email: admin.email,
             username: admin.username,
             role: admin.role,
             userType: 'admin'
         });
-        const { password: _ } = admin, adminWithoutPassword = __rest(admin, ["password"]);
+        const adminResponse = admin.toObject();
+        delete adminResponse.password;
         (0, response_1.sendSuccess)(res, "Login successful", {
-            admin: adminWithoutPassword,
+            admin: adminResponse,
             token
         });
     }
@@ -98,8 +79,8 @@ const createAdmin = async (req, res) => {
     try {
         const { username, email, password, role } = req.body;
         // Check if admin already exists
-        const existingAdminByEmail = admin_model_1.default.getByEmail(email);
-        const existingAdminByUsername = admin_model_1.default.getByUsername(username);
+        const existingAdminByEmail = await admin_model_1.default.findOne({ email });
+        const existingAdminByUsername = await admin_model_1.default.findOne({ username });
         if (existingAdminByEmail) {
             return (0, response_1.sendError)(res, "Admin already exists with this email", undefined, 409);
         }
@@ -108,14 +89,16 @@ const createAdmin = async (req, res) => {
         }
         // Hash password
         const hashedPassword = await (0, auth_1.hashPassword)(password);
-        const newAdmin = admin_model_1.default.create({
+        const newAdmin = new admin_model_1.default({
             username,
             email,
             password: hashedPassword,
             role: role || "Admin"
         });
-        const { password: _ } = newAdmin, adminWithoutPassword = __rest(newAdmin, ["password"]);
-        (0, response_1.sendSuccess)(res, "Admin created successfully", adminWithoutPassword, 201);
+        const savedAdmin = await newAdmin.save();
+        const adminResponse = savedAdmin.toObject();
+        delete adminResponse.password;
+        (0, response_1.sendSuccess)(res, "Admin created successfully", adminResponse, 201);
     }
     catch (error) {
         (0, response_1.sendError)(res, "Failed to create admin", error.message, 500);
@@ -124,18 +107,14 @@ const createAdmin = async (req, res) => {
 exports.createAdmin = createAdmin;
 const updateAdmin = async (req, res) => {
     try {
-        const id = parseInt(req.params.id);
-        if (isNaN(id)) {
-            return (0, response_1.sendError)(res, "Invalid admin ID", undefined, 400);
-        }
+        const id = req.params.id;
         // If password is being updated, hash it
         if (req.body.password) {
             req.body.password = await (0, auth_1.hashPassword)(req.body.password);
         }
-        const updatedAdmin = admin_model_1.default.update(id, req.body);
+        const updatedAdmin = await admin_model_1.default.findByIdAndUpdate(id, req.body, { new: true, runValidators: true }).select('-password');
         if (updatedAdmin) {
-            const { password } = updatedAdmin, adminWithoutPassword = __rest(updatedAdmin, ["password"]);
-            (0, response_1.sendSuccess)(res, "Admin updated successfully", adminWithoutPassword);
+            (0, response_1.sendSuccess)(res, "Admin updated successfully", updatedAdmin);
         }
         else {
             (0, response_1.sendError)(res, "Admin not found", undefined, 404);
@@ -146,14 +125,11 @@ const updateAdmin = async (req, res) => {
     }
 };
 exports.updateAdmin = updateAdmin;
-const deleteAdmin = (req, res) => {
+const deleteAdmin = async (req, res) => {
     try {
-        const id = parseInt(req.params.id);
-        if (isNaN(id)) {
-            return (0, response_1.sendError)(res, "Invalid admin ID", undefined, 400);
-        }
-        const deleted = admin_model_1.default.delete(id);
-        if (deleted) {
+        const id = req.params.id;
+        const deletedAdmin = await admin_model_1.default.findByIdAndDelete(id);
+        if (deletedAdmin) {
             (0, response_1.sendSuccess)(res, "Admin deleted successfully");
         }
         else {
@@ -166,10 +142,12 @@ const deleteAdmin = (req, res) => {
 };
 exports.deleteAdmin = deleteAdmin;
 // Dashboard statistics
-const getDashboardStats = (req, res) => {
+const getDashboardStats = async (req, res) => {
     try {
-        const candidates = candidate_model_1.default.getAll();
-        const firms = firm_model_1.default.getAll();
+        const [candidates, firms] = await Promise.all([
+            candidate_model_1.default.find(),
+            firm_model_1.default.find()
+        ]);
         const stats = {
             totalCandidates: candidates.length,
             pendingCandidates: candidates.filter(c => c.status === 'Pending').length,
@@ -188,17 +166,16 @@ const getDashboardStats = (req, res) => {
 };
 exports.getDashboardStats = getDashboardStats;
 // Approve/Reject candidates and firms
-const updateCandidateStatus = (req, res) => {
+const updateCandidateStatus = async (req, res) => {
     try {
-        const id = parseInt(req.params.id);
+        const id = req.params.id;
         const { status } = req.body;
         if (!['Pending', 'Approved', 'Rejected'].includes(status)) {
             return (0, response_1.sendError)(res, "Invalid status. Must be Pending, Approved, or Rejected", undefined, 400);
         }
-        const updatedCandidate = candidate_model_1.default.update(id, { status });
+        const updatedCandidate = await candidate_model_1.default.findByIdAndUpdate(id, { status }, { new: true, runValidators: true }).select('-password');
         if (updatedCandidate) {
-            const { password } = updatedCandidate, candidateWithoutPassword = __rest(updatedCandidate, ["password"]);
-            (0, response_1.sendSuccess)(res, `Candidate status updated to ${status}`, candidateWithoutPassword);
+            (0, response_1.sendSuccess)(res, `Candidate status updated to ${status}`, updatedCandidate);
         }
         else {
             (0, response_1.sendError)(res, "Candidate not found", undefined, 404);
@@ -209,17 +186,16 @@ const updateCandidateStatus = (req, res) => {
     }
 };
 exports.updateCandidateStatus = updateCandidateStatus;
-const updateFirmStatus = (req, res) => {
+const updateFirmStatus = async (req, res) => {
     try {
-        const id = parseInt(req.params.id);
+        const id = req.params.id;
         const { status } = req.body;
         if (!['Pending', 'Approved', 'Rejected'].includes(status)) {
             return (0, response_1.sendError)(res, "Invalid status. Must be Pending, Approved, or Rejected", undefined, 400);
         }
-        const updatedFirm = firm_model_1.default.update(id, { status });
+        const updatedFirm = await firm_model_1.default.findByIdAndUpdate(id, { status }, { new: true, runValidators: true }).select('-password');
         if (updatedFirm) {
-            const { password } = updatedFirm, firmWithoutPassword = __rest(updatedFirm, ["password"]);
-            (0, response_1.sendSuccess)(res, `Firm status updated to ${status}`, firmWithoutPassword);
+            (0, response_1.sendSuccess)(res, `Firm status updated to ${status}`, updatedFirm);
         }
         else {
             (0, response_1.sendError)(res, "Firm not found", undefined, 404);
