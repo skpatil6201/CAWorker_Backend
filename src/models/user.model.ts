@@ -26,8 +26,4 @@ const UserSchema = new Schema<IUser>({
   timestamps: true
 });
 
-// Create indexes
-UserSchema.index({ email: 1 });
-UserSchema.index({ userType: 1 });
-
 export default mongoose.model<IUser>('User', UserSchema);

@@ -49,6 +49,8 @@ export const registerFirm = async (req: Request, res: Response) => {
       documents
     } = req.body;
 
+    console.log("req.body", req.body);
+
     // Check if firm already exists
     const existingFirm = await Firm.findOne({ email });
     if (existingFirm) {

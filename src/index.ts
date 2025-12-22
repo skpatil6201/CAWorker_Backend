@@ -5,6 +5,8 @@ import userRoutes from "./routes/user.routes";
 import firmRoutes from "./routes/firm.routes";
 import candidateRoutes from "./routes/candidate.routes";
 import adminRoutes from "./routes/admin.routes";
+import jobRoutes from "./routes/job.routes";
+import applicationRoutes from "./routes/application.routes";
 import { sendSuccess } from "./utils/response";
 
 dotenv.config();
@@ -17,7 +19,13 @@ connectDB();
 
 // CORS middleware
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173', 'http://localhost:5174'];
+  const origin = req.headers.origin;
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
   
@@ -36,14 +44,11 @@ app.use("/api", userRoutes);
 app.use("/api", firmRoutes);
 app.use("/api", candidateRoutes);
 app.use("/api", adminRoutes);
+app.use("/api", jobRoutes);
+app.use("/api", applicationRoutes);
 
 app.get("/", (req: Request, res: Response) => {
-  sendSuccess(res, "S K ASSOCIATES - CA Worker API Server is running", {
-    version: "1.0.0",
-    environment: process.env.NODE_ENV || "development",
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  });
+  sendSuccess(res, "S K ASSOCIATES - CA Worker API Server is running");
 });
 
 app.get("/health", (req: Request, res: Response) => {

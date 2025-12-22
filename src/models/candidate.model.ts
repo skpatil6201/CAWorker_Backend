@@ -56,10 +56,4 @@ const CandidateSchema = new Schema<ICandidate>({
   timestamps: true
 });
 
-// Create indexes
-CandidateSchema.index({ email: 1 });
-CandidateSchema.index({ mobileNumber: 1 });
-CandidateSchema.index({ status: 1 });
-CandidateSchema.index({ yearsOfExperience: 1 });
-
 export default mongoose.model<ICandidate>('Candidate', CandidateSchema);
