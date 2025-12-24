@@ -23,10 +23,19 @@ const port = process.env.PORT || 8080;
 const corsOptions = {
     origin: (origin, callback) => {
         var _a;
-        const allowedOrigins = ((_a = process.env.ALLOWED_ORIGINS) === null || _a === void 0 ? void 0 : _a.split(',')) || ['http://localhost:5173', 'http://localhost:5174'];
+        const allowedOrigins = ((_a = process.env.ALLOWED_ORIGINS) === null || _a === void 0 ? void 0 : _a.split(',')) || [
+            'http://localhost:5173',
+            'http://localhost:5174',
+            'https://worker-client-kjzm.vercel.app',
+            'https://worker-client-one.vercel.app'
+        ];
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin)
             return callback(null, true);
+        // In development, allow all origins
+        if (process.env.NODE_ENV === 'development') {
+            return callback(null, true);
+        }
         if (allowedOrigins.includes(origin)) {
             callback(null, true);
         }
