@@ -103,9 +103,9 @@ npm run test       # Run tests (placeholder)
 ## 📚 API Documentation
 
 ### Quick Start URLs
-- **API Base**: `http://localhost:8080/api`
-- **Health Check**: `http://localhost:8080/health`
-- **API Info**: `http://localhost:8080/api`
+- **API Base**: `https://caworker-backend-1.onrender.com/api`
+- **Health Check**: `https://caworker-backend-1.onrender.com/health`
+- **API Info**: `https://caworker-backend-1.onrender.com/api`
 
 ### Complete Documentation
 See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) for comprehensive API documentation including:
