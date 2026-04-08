@@ -8,6 +8,8 @@ import candidateRoutes from "./routes/candidate.routes";
 import adminRoutes from "./routes/admin.routes";
 import jobRoutes from "./routes/job.routes";
 import applicationRoutes from "./routes/application.routes";
+import galleryRoutes from "./routes/gallery.routes";
+import serviceRoutes from "./routes/service.routes";
 import { sendSuccess } from "./utils/response";
 
 dotenv.config();
@@ -52,8 +54,8 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
 app.use("/api", userRoutes);
 app.use("/api", firmRoutes);
@@ -61,6 +63,8 @@ app.use("/api", candidateRoutes);
 app.use("/api", adminRoutes);
 app.use("/api", jobRoutes);
 app.use("/api", applicationRoutes);
+app.use("/api/gallery", galleryRoutes);
+app.use("/api/services", serviceRoutes);
 
 app.get("/", (req: Request, res: Response) => {
   sendSuccess(res, "S K ASSOCIATES - CA Worker API Server is running");
@@ -91,7 +95,7 @@ app.get("/api", (req: Request, res: Response) => {
   });
 });
 
-app.listen(port, () => {
+app.listen(Number(port), "0.0.0.0", () => {
   console.log(`🚀 Server running on http://localhost:${port}`);
   console.log(`📚 API Documentation: http://localhost:${port}/api`);
   console.log(`❤️  Health Check: http://localhost:${port}/health`);
