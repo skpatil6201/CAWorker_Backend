@@ -13,6 +13,8 @@ const candidate_routes_1 = __importDefault(require("./routes/candidate.routes"))
 const admin_routes_1 = __importDefault(require("./routes/admin.routes"));
 const job_routes_1 = __importDefault(require("./routes/job.routes"));
 const application_routes_1 = __importDefault(require("./routes/application.routes"));
+const gallery_routes_1 = __importDefault(require("./routes/gallery.routes"));
+const service_routes_1 = __importDefault(require("./routes/service.routes"));
 const response_1 = require("./utils/response");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
@@ -51,14 +53,16 @@ const corsOptions = {
 };
 app.use((0, cors_1.default)(corsOptions));
 // Body parsing middleware
-app.use(express_1.default.json({ limit: '10mb' }));
-app.use(express_1.default.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express_1.default.json({ limit: '20mb' }));
+app.use(express_1.default.urlencoded({ extended: true, limit: '20mb' }));
 app.use("/api", user_routes_1.default);
 app.use("/api", firm_routes_1.default);
 app.use("/api", candidate_routes_1.default);
 app.use("/api", admin_routes_1.default);
 app.use("/api", job_routes_1.default);
 app.use("/api", application_routes_1.default);
+app.use("/api/gallery", gallery_routes_1.default);
+app.use("/api/services", service_routes_1.default);
 app.get("/", (req, res) => {
     (0, response_1.sendSuccess)(res, "S K ASSOCIATES - CA Worker API Server is running");
 });
