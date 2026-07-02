@@ -24,20 +24,18 @@ const port = process.env.PORT || 8080;
 // CORS configuration
 const corsOptions = {
     origin: (origin, callback) => {
-        var _a;
-        const allowedOrigins = ((_a = process.env.ALLOWED_ORIGINS) === null || _a === void 0 ? void 0 : _a.split(',')) || [
+        const defaultOrigins = [
             'http://localhost:5173',
             'http://localhost:5174',
             'https://worker-client-kjzm.vercel.app',
             'https://worker-client-one.vercel.app'
         ];
+        const allowedOrigins = process.env.ALLOWED_ORIGINS
+            ? [...process.env.ALLOWED_ORIGINS.split(','), ...defaultOrigins]
+            : defaultOrigins;
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin)
             return callback(null, true);
-        // In development, allow all origins
-        if (process.env.NODE_ENV === 'development') {
-            return callback(null, true);
-        }
         if (allowedOrigins.includes(origin)) {
             callback(null, true);
         }
@@ -52,6 +50,7 @@ const corsOptions = {
     allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
 };
 app.use((0, cors_1.default)(corsOptions));
+app.options("*", (0, cors_1.default)(corsOptions)); // handle preflight for all routes
 // Body parsing middleware
 app.use(express_1.default.json({ limit: '20mb' }));
 app.use(express_1.default.urlencoded({ extended: true, limit: '20mb' }));
@@ -88,7 +87,7 @@ app.get("/api", (req, res) => {
         documentation: "See README.md for detailed API documentation"
     });
 });
-app.listen(port, () => {
+app.listen(Number(port), "0.0.0.0", () => {
     console.log(`🚀 Server running on http://localhost:${port}`);
     console.log(`📚 API Documentation: http://localhost:${port}/api`);
     console.log(`❤️  Health Check: http://localhost:${port}/health`);
