@@ -21,29 +21,42 @@ const port = process.env.PORT || 8080;
 connectDB();
 
 // CORS configuration
+const normalizeOrigin = (origin: string) => origin.trim().replace(/\/$/, '');
+const parseOriginList = (value?: string) =>
+  value?.split(',').map(item => normalizeOrigin(item)).filter(Boolean) ?? [];
+
 const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     const defaultOrigins = [
       'http://localhost:5173',
       'http://localhost:5174',
       'https://worker-client-kjzm.vercel.app',
-      'https://worker-client-one.vercel.app',
-      'http://98.92.213.207'
-    ];
-    const allowedOrigins = process.env.ALLOWED_ORIGINS
-      ? [...process.env.ALLOWED_ORIGINS.split(','), ...defaultOrigins]
-      : defaultOrigins;
-    
+      'https://worker-client-one.vercel.app'
+    ].map(normalizeOrigin);
+
+    const allowedEnv = parseOriginList(process.env.ALLOWED_ORIGINS);
+    const deniedEnv = parseOriginList(process.env.DENIED_ORIGINS);
+
+    const allowAll = allowedEnv.includes('*');
+    const effectiveAllowed = allowAll ? defaultOrigins : Array.from(new Set([...allowedEnv, ...defaultOrigins]));
+
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.log(`CORS blocked origin: ${origin}`);
-      console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
-      callback(new Error('Not allowed by CORS'), false);
+
+    const normalizedOrigin = normalizeOrigin(origin);
+
+    if (deniedEnv.includes(normalizedOrigin)) {
+      console.log(`CORS denied origin: ${normalizedOrigin}`);
+      return callback(new Error('Not allowed by CORS'), false);
     }
+
+    if (allowAll || effectiveAllowed.includes(normalizedOrigin)) {
+      return callback(null, true);
+    }
+
+    console.log(`CORS blocked origin: ${normalizedOrigin}`);
+    console.log(`Allowed origins: ${effectiveAllowed.join(', ')}`);
+    callback(new Error('Not allowed by CORS'), false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
