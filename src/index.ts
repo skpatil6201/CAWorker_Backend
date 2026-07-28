@@ -27,7 +27,8 @@ const corsOptions = {
       'http://localhost:5173',
       'http://localhost:5174',
       'https://worker-client-kjzm.vercel.app',
-      'https://worker-client-one.vercel.app'
+      'https://worker-client-one.vercel.app',
+      'http://98.92.213.207/'
     ];
     const allowedOrigins = process.env.ALLOWED_ORIGINS
       ? [...process.env.ALLOWED_ORIGINS.split(','), ...defaultOrigins]
