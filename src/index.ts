@@ -25,15 +25,27 @@ const normalizeOrigin = (origin: string) => origin.trim().replace(/\/$/, '');
 const parseOriginList = (value?: string) =>
   value?.split(',').map(item => normalizeOrigin(item)).filter(Boolean) ?? [];
 
+const getDefaultOrigins = () => [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
+  'http://127.0.0.1:3000',
+  'https://worker-client-kjzm.vercel.app',
+  'https://worker-client-one.vercel.app'
+].map(normalizeOrigin);
+
+const isAllowedOrigin = (origin: string | undefined, effectiveOrigins: string[]) => {
+  if (!origin) return true;
+
+  const normalizedOrigin = normalizeOrigin(origin);
+  return effectiveOrigins.includes(normalizedOrigin) || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(normalizedOrigin);
+};
+
 const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-    const defaultOrigins = [
-      'http://localhost:5173',
-      'http://localhost:5174',
-      'https://worker-client-kjzm.vercel.app',
-      'https://worker-client-one.vercel.app'
-    ].map(normalizeOrigin);
-
+    const defaultOrigins = getDefaultOrigins();
     const allowedEnv = parseOriginList(process.env.ALLOWED_ORIGINS);
     const deniedEnv = parseOriginList(process.env.DENIED_ORIGINS);
 
@@ -50,7 +62,7 @@ const corsOptions = {
       return callback(new Error('Not allowed by CORS'), false);
     }
 
-    if (allowAll || effectiveAllowed.includes(normalizedOrigin)) {
+    if (isAllowedOrigin(origin, effectiveAllowed)) {
       return callback(null, true);
     }
 
