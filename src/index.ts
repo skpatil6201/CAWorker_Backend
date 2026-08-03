@@ -45,6 +45,11 @@ const isAllowedOrigin = (origin: string | undefined, effectiveOrigins: string[])
   return effectiveOrigins.includes(normalizedOrigin) || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(normalizedOrigin);
 };
 
+const allowedOrigins = Array.from(new Set([
+  ...parseOriginList(process.env.ALLOWED_ORIGINS),
+  ...getDefaultOrigins()
+]));
+
 const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     const defaultOrigins = getDefaultOrigins();
@@ -76,6 +81,28 @@ const corsOptions = {
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
 };
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const normalizedOrigin = typeof origin === 'string' ? normalizeOrigin(origin) : undefined;
+  const isAllowed = !origin || isAllowedOrigin(origin, allowedOrigins) || !normalizedOrigin;
+
+  if (isAllowed && origin) {
+    res.header('Access-Control-Allow-Origin', origin);
+  } else if (!origin) {
+    res.header('Access-Control-Allow-Origin', '*');
+  }
+
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
 
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions)); // handle preflight for all routes
