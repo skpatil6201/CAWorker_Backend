@@ -25,7 +25,7 @@ const port = process.env.PORT || 8080;
 const corsOptions = {
     origin: (origin, callback) => {
         const defaultOrigins = [
-            'http://localhost:5173',
+            'http://localhost:5175',
             'http://localhost:5174',
             'https://worker-client-kjzm.vercel.app',
             'https://worker-client-one.vercel.app'
