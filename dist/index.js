@@ -36,36 +36,48 @@ const getDefaultOrigins = () => [
     'https://worker-client-kjzm.vercel.app',
     'https://worker-client-one.vercel.app'
 ].map(normalizeOrigin);
-const isAllowedOrigin = (origin, effectiveOrigins) => {
+const getCorsConfig = () => {
+    const allowedEnv = parseOriginList(process.env.ALLOWED_ORIGINS);
+    const deniedOrigins = parseOriginList(process.env.DENIED_ORIGINS);
+    const allowAll = allowedEnv.includes('*');
+    const allowedOrigins = Array.from(new Set([
+        ...allowedEnv.filter(origin => origin !== '*'),
+        ...getDefaultOrigins()
+    ]));
+    return { allowAll, allowedOrigins, deniedOrigins };
+};
+const isAllowedOrigin = (origin, effectiveOrigins, allowAll = false) => {
     if (!origin)
+        return true;
+    if (allowAll)
         return true;
     const normalizedOrigin = normalizeOrigin(origin);
     return effectiveOrigins.includes(normalizedOrigin) || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(normalizedOrigin);
 };
-const allowedOrigins = Array.from(new Set([
-    ...parseOriginList(process.env.ALLOWED_ORIGINS),
-    ...getDefaultOrigins()
-]));
+const resolveCorsOrigin = (origin) => {
+    const { allowAll, allowedOrigins, deniedOrigins } = getCorsConfig();
+    if (!origin)
+        return '*';
+    const normalizedOrigin = normalizeOrigin(origin);
+    if (deniedOrigins.includes(normalizedOrigin)) {
+        console.log(`CORS denied origin: ${normalizedOrigin}`);
+        return false;
+    }
+    if (isAllowedOrigin(origin, allowedOrigins, allowAll)) {
+        return origin;
+    }
+    console.log(`CORS blocked origin: ${normalizedOrigin}`);
+    console.log(`Allowed origins: ${allowAll ? '*' : allowedOrigins.join(', ')}`);
+    return false;
+};
 const corsOptions = {
     origin: (origin, callback) => {
-        const defaultOrigins = getDefaultOrigins();
-        const allowedEnv = parseOriginList(process.env.ALLOWED_ORIGINS);
-        const deniedEnv = parseOriginList(process.env.DENIED_ORIGINS);
-        const allowAll = allowedEnv.includes('*');
-        const effectiveAllowed = allowAll ? defaultOrigins : Array.from(new Set([...allowedEnv, ...defaultOrigins]));
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin)
             return callback(null, true);
-        const normalizedOrigin = normalizeOrigin(origin);
-        if (deniedEnv.includes(normalizedOrigin)) {
-            console.log(`CORS denied origin: ${normalizedOrigin}`);
-            return callback(new Error('Not allowed by CORS'), false);
-        }
-        if (isAllowedOrigin(origin, effectiveAllowed)) {
+        if (resolveCorsOrigin(origin)) {
             return callback(null, true);
         }
-        console.log(`CORS blocked origin: ${normalizedOrigin}`);
-        console.log(`Allowed origins: ${effectiveAllowed.join(', ')}`);
         callback(new Error('Not allowed by CORS'), false);
     },
     credentials: true,
@@ -73,20 +85,17 @@ const corsOptions = {
     allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
 };
 app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    const normalizedOrigin = typeof origin === 'string' ? normalizeOrigin(origin) : undefined;
-    const isAllowed = !origin || isAllowedOrigin(origin, allowedOrigins) || !normalizedOrigin;
-    if (isAllowed && origin) {
-        res.header('Access-Control-Allow-Origin', origin);
+    const origin = typeof req.headers.origin === 'string' ? req.headers.origin : undefined;
+    const allowedOrigin = resolveCorsOrigin(origin);
+    if (allowedOrigin) {
+        res.header('Access-Control-Allow-Origin', allowedOrigin);
     }
-    else if (!origin) {
-        res.header('Access-Control-Allow-Origin', '*');
-    }
+    res.header('Vary', 'Origin');
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
     if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
+        return res.sendStatus(204);
     }
     next();
 });
