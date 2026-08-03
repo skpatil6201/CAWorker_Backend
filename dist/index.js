@@ -22,28 +22,47 @@ const port = process.env.PORT || 8080;
 // Connect to MongoDB
 (0, database_1.default)();
 // CORS configuration
+const normalizeOrigin = (origin) => origin.trim().replace(/\/$/, '');
+const parseOriginList = (value) => { var _a; return (_a = value === null || value === void 0 ? void 0 : value.split(',').map(item => normalizeOrigin(item)).filter(Boolean)) !== null && _a !== void 0 ? _a : []; };
+const getDefaultOrigins = () => [
+    'http://localhost:5178',
+    'http://localhost:5174',
+    'http://localhost:3000',
+    'http://127.0.0.1:5170',
+    'http://127.0.0.1:5174',
+    'http://127.0.0.1:3000',
+    'http://98.92.213.207',
+    'http://98.92.213.207:5173',
+    'https://worker-client-kjzm.vercel.app',
+    'https://worker-client-one.vercel.app'
+].map(normalizeOrigin);
+const isAllowedOrigin = (origin, effectiveOrigins) => {
+    if (!origin)
+        return true;
+    const normalizedOrigin = normalizeOrigin(origin);
+    return effectiveOrigins.includes(normalizedOrigin) || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(normalizedOrigin);
+};
 const corsOptions = {
     origin: (origin, callback) => {
-        const defaultOrigins = [
-            'http://localhost:5175',
-            'http://localhost:5174',
-            'https://worker-client-kjzm.vercel.app',
-            'https://worker-client-one.vercel.app'
-        ];
-        const allowedOrigins = process.env.ALLOWED_ORIGINS
-            ? [...process.env.ALLOWED_ORIGINS.split(','), ...defaultOrigins]
-            : defaultOrigins;
+        const defaultOrigins = getDefaultOrigins();
+        const allowedEnv = parseOriginList(process.env.ALLOWED_ORIGINS);
+        const deniedEnv = parseOriginList(process.env.DENIED_ORIGINS);
+        const allowAll = allowedEnv.includes('*');
+        const effectiveAllowed = allowAll ? defaultOrigins : Array.from(new Set([...allowedEnv, ...defaultOrigins]));
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin)
             return callback(null, true);
-        if (allowedOrigins.includes(origin)) {
-            callback(null, true);
+        const normalizedOrigin = normalizeOrigin(origin);
+        if (deniedEnv.includes(normalizedOrigin)) {
+            console.log(`CORS denied origin: ${normalizedOrigin}`);
+            return callback(new Error('Not allowed by CORS'), false);
         }
-        else {
-            console.log(`CORS blocked origin: ${origin}`);
-            console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
-            callback(new Error('Not allowed by CORS'), false);
+        if (isAllowedOrigin(origin, effectiveAllowed)) {
+            return callback(null, true);
         }
+        console.log(`CORS blocked origin: ${normalizedOrigin}`);
+        console.log(`Allowed origins: ${effectiveAllowed.join(', ')}`);
+        callback(new Error('Not allowed by CORS'), false);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
