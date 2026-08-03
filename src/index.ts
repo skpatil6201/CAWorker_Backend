@@ -26,10 +26,10 @@ const parseOriginList = (value?: string) =>
   value?.split(',').map(item => normalizeOrigin(item)).filter(Boolean) ?? [];
 
 const getDefaultOrigins = () => [
-  'http://localhost:5173',
+  'http://localhost:5178',
   'http://localhost:5174',
   'http://localhost:3000',
-  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5170',
   'http://127.0.0.1:5174',
   'http://127.0.0.1:3000',
   'https://worker-client-kjzm.vercel.app',
