@@ -32,6 +32,8 @@ const getDefaultOrigins = () => [
   'http://127.0.0.1:5170',
   'http://127.0.0.1:5174',
   'http://127.0.0.1:3000',
+  'http://98.92.213.207',
+  'http://98.92.213.207:5173',
   'https://worker-client-kjzm.vercel.app',
   'https://worker-client-one.vercel.app'
 ].map(normalizeOrigin);
