@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getCandidateProfile = exports.deleteCandidate = exports.updateCandidate = exports.loginCandidate = exports.registerCandidate = exports.getCandidateById = exports.getAllCandidates = void 0;
+exports.getCandidateProfile = exports.deleteCandidate = exports.updateCandidate = exports.loginCandidate = exports.registerCandidate = exports.getCandidatesForFirm = exports.getCandidateById = exports.getAllCandidates = void 0;
 const candidate_model_1 = __importDefault(require("../models/candidate.model"));
 const auth_1 = require("../utils/auth");
 const response_1 = require("../utils/response");
@@ -33,6 +33,16 @@ const getCandidateById = async (req, res) => {
     }
 };
 exports.getCandidateById = getCandidateById;
+const getCandidatesForFirm = async (req, res) => {
+    try {
+        const candidates = await candidate_model_1.default.find({ status: 'Approved' }).select('-password');
+        (0, response_1.sendSuccess)(res, "Candidates retrieved successfully", candidates);
+    }
+    catch (error) {
+        (0, response_1.sendError)(res, "Failed to retrieve candidates", error.message, 500);
+    }
+};
+exports.getCandidatesForFirm = getCandidatesForFirm;
 const registerCandidate = async (req, res) => {
     try {
         const { fullName, dateOfBirth, gender, mobileNumber, email, password, address, highestQualification, certifications, yearsOfExperience, currentPreviousEmployer, positionHeld, areasOfExpertise, softwareProficiency, otherSoftware, documents } = req.body;

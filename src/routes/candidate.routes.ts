@@ -6,7 +6,8 @@ import {
   loginCandidate,
   updateCandidate,
   deleteCandidate,
-  getCandidateProfile
+  getCandidateProfile,
+  getCandidatesForFirm
 } from "../controllers/candidate.controller";
 import { authenticateToken, authorizeRoles } from "../middleware/auth.middleware";
 
@@ -17,9 +18,12 @@ router.post("/candidates/register", registerCandidate);
 router.post("/candidates/login", loginCandidate);
 
 // Protected routes - Admin or Firm
-router.get("/candidates", authenticateToken, authorizeRoles('SuperAdmin', 'Admin', 'firm', 'Firm'), getAllCandidates);
+router.get("/candidates", authenticateToken, authorizeRoles('SuperAdmin', 'Admin'), getAllCandidates);
 router.get("/candidates/:id", authenticateToken, authorizeRoles('SuperAdmin', 'Admin'), getCandidateById);
 router.delete("/candidates/:id", authenticateToken, authorizeRoles('SuperAdmin', 'Admin'), deleteCandidate);
+
+// Protected routes - Firm or Admin
+router.get("/candidates/firm", authenticateToken, authorizeRoles('SuperAdmin', 'Admin', 'firm', 'Firm'), getCandidatesForFirm);
 
 // Protected routes - Candidate or Admin
 router.get("/candidates/profile/me", authenticateToken, getCandidateProfile);
