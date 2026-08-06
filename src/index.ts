@@ -10,6 +10,7 @@ import jobRoutes from "./routes/job.routes";
 import applicationRoutes from "./routes/application.routes";
 import galleryRoutes from "./routes/gallery.routes";
 import serviceRoutes from "./routes/service.routes";
+import assignmentRequestRoutes from "./routes/assignmentRequest.routes";
 import { sendSuccess } from "./utils/response";
 
 dotenv.config();
@@ -128,6 +129,7 @@ app.use("/api", candidateRoutes);
 app.use("/api", adminRoutes);
 app.use("/api", jobRoutes);
 app.use("/api", applicationRoutes);
+app.use("/api", assignmentRequestRoutes);
 app.use("/api/gallery", galleryRoutes);
 app.use("/api/services", serviceRoutes);
 
