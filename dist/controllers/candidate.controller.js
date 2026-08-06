@@ -35,7 +35,7 @@ const getCandidateById = async (req, res) => {
 exports.getCandidateById = getCandidateById;
 const getCandidatesForFirm = async (req, res) => {
     try {
-        const candidates = await candidate_model_1.default.find({ status: 'Approved' }).select('-password');
+        const candidates = await candidate_model_1.default.find().select('-password');
         (0, response_1.sendSuccess)(res, "Candidates retrieved successfully", candidates);
     }
     catch (error) {

@@ -30,7 +30,7 @@ export const getCandidateById = async (req: Request, res: Response) => {
 
 export const getCandidatesForFirm = async (req: Request, res: Response) => {
   try {
-    const candidates = await Candidate.find({ status: 'Approved' }).select('-password');
+    const candidates = await Candidate.find().select('-password');
     sendSuccess(res, "Candidates retrieved successfully", candidates);
   } catch (error) {
     sendError(res, "Failed to retrieve candidates", (error as Error).message, 500);

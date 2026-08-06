@@ -17,7 +17,7 @@ router.post("/firms/register", registerFirm);
 router.post("/firms/login", loginFirm);
 
 // Protected routes - Admin only
-router.get("/firms", authenticateToken, authorizeRoles('SuperAdmin', 'Admin'), getAllFirms);
+router.get("/firms", authenticateToken, authorizeRoles('SuperAdmin', 'Admin',''), getAllFirms);
 router.get("/firms/:id", authenticateToken, authorizeRoles('SuperAdmin', 'Admin'), getFirmById);
 router.delete("/firms/:id", authenticateToken, authorizeRoles('SuperAdmin', 'Admin'), deleteFirm);
 

@@ -8,7 +8,7 @@ const router = (0, express_1.Router)();
 router.post("/firms/register", firm_controller_1.registerFirm);
 router.post("/firms/login", firm_controller_1.loginFirm);
 // Protected routes - Admin only
-router.get("/firms", auth_middleware_1.authenticateToken, (0, auth_middleware_1.authorizeRoles)('SuperAdmin', 'Admin'), firm_controller_1.getAllFirms);
+router.get("/firms", auth_middleware_1.authenticateToken, (0, auth_middleware_1.authorizeRoles)('SuperAdmin', 'Admin', ''), firm_controller_1.getAllFirms);
 router.get("/firms/:id", auth_middleware_1.authenticateToken, (0, auth_middleware_1.authorizeRoles)('SuperAdmin', 'Admin'), firm_controller_1.getFirmById);
 router.delete("/firms/:id", auth_middleware_1.authenticateToken, (0, auth_middleware_1.authorizeRoles)('SuperAdmin', 'Admin'), firm_controller_1.deleteFirm);
 // Protected routes - Firm or Admin
