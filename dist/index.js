@@ -113,7 +113,7 @@ app.use("/api", application_routes_1.default);
 app.use("/api/gallery", gallery_routes_1.default);
 app.use("/api/services", service_routes_1.default);
 app.get("/", (req, res) => {
-    (0, response_1.sendSuccess)(res, "S K ASSOCIATES - CA Worker API Server is running");
+    (0, response_1.sendSuccess)(res, "S K ASSOCIATES - CA Worker API Server is running test 1");
 });
 app.get("/health", (req, res) => {
     const healthData = {
