@@ -134,7 +134,7 @@ app.use("/api/gallery", galleryRoutes);
 app.use("/api/services", serviceRoutes);
 
 app.get("/", (req: Request, res: Response) => {
-  sendSuccess(res, "S K ASSOCIATES - CA Worker API Server is running test 1 ");
+  sendSuccess(res, "S K ASSOCIATES - CA Worker API Server is running test 1.... ");
 });
 
 app.get("/health", (req: Request, res: Response) => {
