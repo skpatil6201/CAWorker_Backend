@@ -5,6 +5,6 @@ import { createAssignmentRequest, getFirmAssignmentRequests } from '../controlle
 const router = Router();
 
 router.post('/assignment-requests', authenticateToken, authorizeRoles('firm', 'Firm', 'SuperAdmin', 'Admin'), createAssignmentRequest);
-router.get('/assignment-requests/firm',getFirmAssignmentRequests);
+router.get('/assignment-requests/firm', authenticateToken, authorizeRoles('firm', 'Firm', 'SuperAdmin', 'Admin'), getFirmAssignmentRequests);
 
 export default router;
