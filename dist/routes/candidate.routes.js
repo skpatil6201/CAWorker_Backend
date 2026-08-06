@@ -11,8 +11,8 @@ router.post("/candidates/login", candidate_controller_1.loginCandidate);
 router.get("/candidates", auth_middleware_1.authenticateToken, (0, auth_middleware_1.authorizeRoles)('SuperAdmin', 'Admin'), candidate_controller_1.getAllCandidates);
 router.get("/candidates/:id", auth_middleware_1.authenticateToken, (0, auth_middleware_1.authorizeRoles)('SuperAdmin', 'Admin'), candidate_controller_1.getCandidateById);
 router.delete("/candidates/:id", auth_middleware_1.authenticateToken, (0, auth_middleware_1.authorizeRoles)('SuperAdmin', 'Admin'), candidate_controller_1.deleteCandidate);
-// Protected routes - Firm or Admin
-router.get("/candidates/firm", auth_middleware_1.authenticateToken, (0, auth_middleware_1.authorizeRoles)('SuperAdmin', 'Admin', 'firm', 'Firm'), candidate_controller_1.getCandidatesForFirm);
+// Protected routes - Authenticated users (all roles)
+router.get("/candidates/firm", auth_middleware_1.authenticateToken, candidate_controller_1.getCandidatesForFirm);
 // Protected routes - Candidate or Admin
 router.get("/candidates/profile/me", auth_middleware_1.authenticateToken, candidate_controller_1.getCandidateProfile);
 router.put("/candidates/:id", auth_middleware_1.authenticateToken, candidate_controller_1.updateCandidate);

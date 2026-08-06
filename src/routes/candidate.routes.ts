@@ -22,8 +22,8 @@ router.get("/candidates", authenticateToken, authorizeRoles('SuperAdmin', 'Admin
 router.get("/candidates/:id", authenticateToken, authorizeRoles('SuperAdmin', 'Admin'), getCandidateById);
 router.delete("/candidates/:id", authenticateToken, authorizeRoles('SuperAdmin', 'Admin'), deleteCandidate);
 
-// Protected routes - Firm or Admin
-router.get("/candidates/firm", authenticateToken, authorizeRoles('SuperAdmin', 'Admin', 'firm', 'Firm'), getCandidatesForFirm);
+// Protected routes - Authenticated users (all roles)
+router.get("/candidates/firm", authenticateToken, getCandidatesForFirm);
 
 // Protected routes - Candidate or Admin
 router.get("/candidates/profile/me", authenticateToken, getCandidateProfile);
