@@ -115,7 +115,7 @@ app.use("/api", assignmentRequest_routes_1.default);
 app.use("/api/gallery", gallery_routes_1.default);
 app.use("/api/services", service_routes_1.default);
 app.get("/", (req, res) => {
-    (0, response_1.sendSuccess)(res, "S K ASSOCIATES - CA Worker API Server is running test 1.... ");
+    (0, response_1.sendSuccess)(res, "S K ASSOCIATES - CA Worker API Server is running test 2.... ");
 });
 app.get("/health", (req, res) => {
     const healthData = {
