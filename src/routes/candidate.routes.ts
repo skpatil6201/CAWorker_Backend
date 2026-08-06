@@ -16,8 +16,8 @@ const router = Router();
 router.post("/candidates/register", registerCandidate);
 router.post("/candidates/login", loginCandidate);
 
-// Protected routes - Admin only
-router.get("/candidates", authenticateToken, authorizeRoles('SuperAdmin', 'Admin'), getAllCandidates);
+// Protected routes - Admin or Firm
+router.get("/candidates", authenticateToken, authorizeRoles('SuperAdmin', 'Admin', 'firm', 'Firm'), getAllCandidates);
 router.get("/candidates/:id", authenticateToken, authorizeRoles('SuperAdmin', 'Admin'), getCandidateById);
 router.delete("/candidates/:id", authenticateToken, authorizeRoles('SuperAdmin', 'Admin'), deleteCandidate);
 
